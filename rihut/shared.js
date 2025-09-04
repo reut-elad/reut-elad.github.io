@@ -74,7 +74,7 @@ function createHeader(logoSrc = "reut.png", altText = "רעות") {
 }
 
 // יצירת סקציית כסאות
-function createChairsSection(showFoundersMessage = false) {
+async function createChairsSection(showFoundersMessage = false) {
   const foundersMessage = showFoundersMessage ? `
         <div class="section" style="background: #f0f9ff; padding: 16px; border-radius: 8px;">
             <p style="margin: 0; color: #1e40af; font-weight: 500;">
@@ -82,6 +82,29 @@ function createChairsSection(showFoundersMessage = false) {
             </p>
         </div>
     ` : '';
+
+  // טען נתוני התקדמות בפועל
+  let seatsData = { received: 0, total: 15000 }; // ברירת מחדל
+  try {
+    const cacheBuster = new Date().getTime();
+    const response = await fetch(`https://raw.githubusercontent.com/reut-elad/rihut/refs/heads/master/status.json?v=${cacheBuster}`, {
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    const data = await response.json();
+    if (data.seats) {
+      seatsData = data.seats;
+    }
+  } catch (error) {
+    console.warn('לא ניתן לטעון נתוני התקדמות:', error);
+  }
+
+  const progressPercentage = Math.round((seatsData.received / seatsData.total) * 100);
+  const progressText = seatsData.received === 0 ? 'בואו נתחיל!' : `₪${seatsData.received.toLocaleString()} מתוך ₪${seatsData.total.toLocaleString()}`;
 
   return `
         <div class="project-card">
@@ -92,13 +115,13 @@ function createChairsSection(showFoundersMessage = false) {
 
             <div class="amount-display">
                 <div class="amount-label">סה"כ נדרש</div>
-                <div class="main-amount">₪14,400</div>
+                <div class="main-amount">₪${seatsData.total.toLocaleString()}</div>
                 <div class="amount-label">12 כסאות חדשים ב-1,200 ש"ח כ"א</div>
             </div>
 
             <div class="progress-bar">
-                <div class="progress-fill" style="width: 0%"></div>
-                <div class="progress-text">בואו נתחיל!</div>
+                <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                <div class="progress-text">${progressText}</div>
             </div>
 
             <div class="section">
@@ -210,7 +233,7 @@ function createFlooringSection() {
 }
 
 // טעינת התוכן כשהדף נטען
-function loadSharedContent() {
+async function loadSharedContent() {
   const headerElement = document.getElementById('header-container');
   if (headerElement) {
     headerElement.innerHTML = createHeader();
@@ -230,7 +253,7 @@ function loadSharedContent() {
   const chairsElement = document.getElementById('chairs-container');
   if (chairsElement) {
     const isFoundersPage = document.body.classList.contains('founders-page');
-    chairsElement.innerHTML = createChairsSection(isFoundersPage);
+    chairsElement.innerHTML = await createChairsSection(isFoundersPage);
   }
 
   const classroomElement = document.getElementById('classroom-container');
